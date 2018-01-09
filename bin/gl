@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+
+if (parseInt(process.versions.node.split('.')[0]) < 8) throw new Error('gl requires Node.js version 8 or newer.')
+function help () {
+  console.log('  Syntax:')
+  console.log('    gl <start|stop|update> <file> [InstanceNum]')
+  console.log('  Examples:')
+  console.log('    gl start demo.js ')
+  console.log('    gl stop demo.js')
+  console.log('    gl update')
+}
+
+if (process.argv.length <= 2) {
+  help()
+  process.exit(1)
+}
+
+const shell = require('shelljs')
+if (!shell.which('pm2')) {
+  shell.echo('Pleas run "npm install pm2 -g " first.')
+  shell.exit(1)
+  process.exit(1)
+}
+
+const pkg = require('../package.json')
+const program = require('commander')
+program
+    .version(pkg.version)
+    .option('-v --version', 'get version')
+    .on('--help', help)
+    .action(function (cmd, options) {
+      console.log('Unknown command:', cmd)
+    })
+
+const pm = require('../lib/pm.js')
+const path = require('path')
+const fs = require('fs')
+
+function getCron (fileFullName) {
+  var code = fs.readFileSync(fileFullName, 'utf-8')
+  var reg = /(\/\/.*)|(\/\*[\s\S]*?\*\/)/g // 匹配代码注释
+  code = code.replace(reg, '')
+  code = code.split('cron:')[1]
+  if (code) {
+    code = code.split(',')[0]
+    code = code.replace(/['|"]/g, '')
+        // code = code.replace('"',"");
+  }
+  return code
+}
+
+program.command('start <file> [instanceNum]')
+    .description('start run the file')
+    .action(function (file, instanceNum) {
+      let fileFullName = path.resolve(file)
+
+      if (!fs.existsSync(fileFullName)) {
+        console.log('File Not Found!', fileFullName)
+        process.exit(1)
+      }
+
+      var cronStr = getCron(fileFullName)
+      if (cronStr) console.log(cronStr)
+
+      instanceNum = instanceNum || 1
+      pm.start(fileFullName, instanceNum)
+            .then(() => {
+              return pm.startCron(fileFullName, instanceNum, cronStr)
+            })
+            .then(() => {
+              console.log('start ok')
+              let name = path.basename(fileFullName)
+              shell.exec('pm2 list')
+              shell.exec('pm2 logs ' + name)
+              process.exit(0)
+            })
+            .catch((err) => {
+              console.error(err)
+              process.exit(1)
+            })
+    })
+program.command('stop <file>')
+    .description('stop run the file')
+    .action(function (file) {
+      let fileFullName = path.resolve(file)
+      pm.stop(fileFullName).then(() => {
+        console.log('stop ok')
+        shell.exec('pm2 list')
+        process.exit(0)
+      }).catch((err) => {
+        console.error(err)
+        process.exit(1)
+      })
+    })
+program.command('update')
+    .description('update godless itself')
+    .action(function () {
+      console.log('up...')
+      shell.exec('npm i godless -g')
+      process.exit(0)
+    })
+
+program.parse(process.argv)

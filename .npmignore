@@ -1,0 +1,7 @@
+*.log
+*.pid
+demo
+docs
+.idea
+.git
+README.md
