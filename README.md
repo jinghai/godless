@@ -3,6 +3,8 @@
 
 安装
 
+npm install pm2
+
 npm install godless
 
 运行
