@@ -3,7 +3,7 @@
 
 安装
 
-yum install godless
+npm install godless
 
 运行
 
