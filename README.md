@@ -3,9 +3,9 @@
 
 安装
 
-npm install pm2
+npm install pm2 -g
 
-npm install godless
+npm install godless -g
 
 运行
 
